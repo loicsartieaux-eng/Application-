@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0090ad">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Followers">
+  <title>NumLo Followers</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <p class="eyebrow">NumLo</p>
+        <h1>FOLLOWERS</h1>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Onglet 1 : saisie -->
+    <section id="tab-saisie" class="tab is-active" aria-labelledby="nav-saisie">
+      <div class="section-title"><span class="rule"></span><h2>Encoder</h2></div>
+
+      <form id="entry-form" class="card" autocomplete="off">
+        <label class="field">
+          <span>Compte</span>
+          <select id="entry-account" required></select>
+        </label>
+        <label class="field">
+          <span>Nombre de followers</span>
+          <input id="entry-count" type="number" inputmode="numeric" min="0" step="1" required placeholder="ex. 1250">
+        </label>
+        <label class="field">
+          <span>Date</span>
+          <input id="entry-date" type="date" required>
+        </label>
+        <p id="entry-hint" class="hint" aria-live="polite"></p>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </form>
+
+      <div class="section-title"><span class="rule"></span><h2>Historique</h2></div>
+      <ul id="history" class="history"></ul>
+    </section>
+
+    <!-- Onglet 2 : graphique -->
+    <section id="tab-graphique" class="tab" aria-labelledby="nav-graphique" hidden>
+      <div class="section-title"><span class="rule"></span><h2>Suivi</h2></div>
+
+      <div class="filters">
+        <div id="chart-accounts" class="chips" role="group" aria-label="Comptes affichés"></div>
+        <div id="chart-range" class="segmented" role="group" aria-label="Période">
+          <button type="button" data-range="30">30 j</button>
+          <button type="button" data-range="90">3 mois</button>
+          <button type="button" data-range="365">1 an</button>
+          <button type="button" data-range="all" class="is-on">Tout</button>
+        </div>
+      </div>
+
+      <div id="stats" class="stats"></div>
+
+      <div class="card chart-card">
+        <div id="chart" class="chart"></div>
+        <div id="chart-legend" class="legend"></div>
+      </div>
+
+      <details class="card table-card">
+        <summary>Voir les données en tableau</summary>
+        <div id="chart-table"></div>
+      </details>
+    </section>
+
+    <!-- Onglet 3 : comptes -->
+    <section id="tab-comptes" class="tab" aria-labelledby="nav-comptes" hidden>
+      <div class="section-title"><span class="rule"></span><h2>Mes pages</h2></div>
+
+      <form id="account-form" class="card" autocomplete="off">
+        <label class="field">
+          <span>Nom de la page</span>
+          <input id="account-name" type="text" required maxlength="60" placeholder="ex. NumLo">
+        </label>
+        <label class="field">
+          <span>Réseau</span>
+          <select id="account-network">
+            <option>Facebook</option>
+            <option>Instagram</option>
+            <option>LinkedIn</option>
+            <option>TikTok</option>
+            <option>YouTube</option>
+            <option>X</option>
+            <option>Autre</option>
+          </select>
+        </label>
+        <button type="submit" class="btn btn-primary">Ajouter la page</button>
+      </form>
+
+      <ul id="account-list" class="history"></ul>
+
+      <div class="section-title"><span class="rule"></span><h2>Sauvegarde</h2></div>
+      <div class="card">
+        <p class="hint">Les données sont enregistrées sur ce téléphone. Exporte-les régulièrement pour les garder en sécurité.</p>
+        <div class="btn-row">
+          <button type="button" id="export-json" class="btn">Exporter (JSON)</button>
+          <button type="button" id="export-csv" class="btn">Exporter (CSV)</button>
+        </div>
+        <label class="btn btn-file">
+          Importer une sauvegarde
+          <input id="import-json" type="file" accept="application/json,.json" hidden>
+        </label>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar" role="tablist">
+    <button id="nav-saisie" role="tab" data-tab="saisie" class="is-active" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Encoder
+    </button>
+    <button id="nav-graphique" role="tab" data-tab="graphique" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M5 15l4-5 4 3 6-7"/></svg>
+      Graphique
+    </button>
+    <button id="nav-comptes" role="tab" data-tab="comptes" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg>
+      Comptes
+    </button>
+  </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
