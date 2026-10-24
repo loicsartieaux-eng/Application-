@@ -1,15 +1,15 @@
-/* Charte NumLo (extraite du kit de marque Canva) */
+/* Charte NumLo (couleurs relevées sur le logo) */
 :root {
-  --teal: #0090ad;
-  --teal-light: #60aec2;
-  --teal-soft: #e3f1f5;
-  --yellow: #e8df2e;
-  --lavender: #b0aebb;
-  --cream: #fdfbf8;
+  --navy: #003a5e;
+  --blue: #1391b5;
+  --turquoise: #26cbb7;
+  --mint: #3fdfb7;
+  --gradient: linear-gradient(90deg, var(--mint), var(--turquoise) 45%, var(--blue));
+  --cream: #f5f9fa;
   --paper: #ffffff;
-  --ink: #454545;
-  --ink-muted: #7a7a7a;
-  --line: #dfdfdf;
+  --ink: #003a5e;
+  --ink-muted: #5f7383;
+  --line: #dbe5ea;
   --danger: #c0392b;
   --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --radius: 14px;
@@ -36,27 +36,26 @@ body {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: var(--cream);
-  padding: calc(14px + env(safe-area-inset-top)) 20px 12px;
-  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  padding: calc(10px + env(safe-area-inset-top)) 20px 12px;
 }
 .topbar::after {
-  /* bande bleu canard de la charte, à droite */
+  /* filet dégradé menthe → bleu, comme le symbole du logo */
   content: "";
   position: absolute;
-  top: 0; right: 0; bottom: 0;
-  width: 22%;
-  max-width: 120px;
-  background: var(--teal);
+  left: 0; right: 0; bottom: -1px;
+  height: 4px;
+  background: var(--gradient);
 }
-.brand { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
-.brand-mark { width: 14px; height: 14px; background: var(--yellow); flex: none; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-logo { height: 52px; width: auto; flex: none; }
 .eyebrow {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
+  color: var(--blue);
 }
 h1 {
   margin: 0;
@@ -70,7 +69,7 @@ main { padding: 0 16px; max-width: 640px; margin: 0 auto; }
 
 /* Titres de section : trait bleu + titre */
 .section-title { margin: 24px 4px 12px; }
-.section-title .rule { display: block; width: 36px; height: 4px; background: var(--teal-light); margin-bottom: 8px; }
+.section-title .rule { display: block; width: 36px; height: 4px; background: var(--gradient); margin-bottom: 8px; }
 .section-title h2 {
   margin: 0;
   font-size: 22px;
@@ -111,13 +110,13 @@ input, select {
   appearance: none;
 }
 select {
-  background-image: linear-gradient(45deg, transparent 50%, var(--teal) 50%), linear-gradient(135deg, var(--teal) 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, var(--blue) 50%), linear-gradient(135deg, var(--blue) 50%, transparent 50%);
   background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
   background-size: 6px 6px;
   background-repeat: no-repeat;
   padding-right: 36px;
 }
-input:focus, select:focus { outline: 2px solid var(--teal); outline-offset: 1px; border-color: var(--teal); }
+input:focus, select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
 
 .hint { font-size: 14px; color: var(--ink-muted); margin: 0 0 12px; min-height: 1em; }
 .hint strong { color: var(--ink); }
@@ -135,13 +134,13 @@ input:focus, select:focus { outline: 2px solid var(--teal); outline-offset: 1px;
   min-height: 48px;
   padding: 0 16px;
   border-radius: 10px;
-  border: 2px solid var(--teal);
+  border: 2px solid var(--navy);
   background: var(--paper);
-  color: var(--teal);
+  color: var(--navy);
   cursor: pointer;
 }
-.btn-primary { width: 100%; background: var(--teal); color: #fff; }
-.btn-primary:active { background: #007a93; }
+.btn-primary { width: 100%; background: var(--navy); color: #fff; box-shadow: inset 0 -4px 0 var(--turquoise); }
+.btn-primary:active { background: #002b46; }
 .btn-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .btn-row .btn { flex: 1; font-size: 13px; padding: 0 8px; }
 .btn-file { width: 100%; }
@@ -175,7 +174,7 @@ input:focus, select:focus { outline: 2px solid var(--teal); outline-offset: 1px;
   font-size: 20px;
   cursor: pointer;
 }
-.icon-btn:active { background: #f2efea; color: var(--danger); }
+.icon-btn:active { background: #eef3f5; color: var(--danger); }
 
 /* Filtres du graphique */
 .filters { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
@@ -201,7 +200,7 @@ input:focus, select:focus { outline: 2px solid var(--teal); outline-offset: 1px;
   min-height: 38px; border: 0; border-radius: 8px;
   background: transparent; color: var(--ink-muted); cursor: pointer;
 }
-.segmented button.is-on { background: var(--teal); color: #fff; }
+.segmented button.is-on { background: var(--navy); color: #fff; }
 
 /* Tuiles chiffres clés */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 12px; }
@@ -216,7 +215,7 @@ input:focus, select:focus { outline: 2px solid var(--teal); outline-offset: 1px;
 .chart-card { padding: 12px 8px 12px 4px; }
 .chart { position: relative; width: 100%; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
-.chart .grid line { stroke: #ece9e4; stroke-width: 1; }
+.chart .grid line { stroke: #e8eef1; stroke-width: 1; }
 .chart .axis text { fill: var(--ink-muted); font-size: 11px; font-family: var(--font); }
 .chart .series path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .chart .series circle { stroke: var(--paper); stroke-width: 2; }
@@ -227,7 +226,7 @@ input:focus, select:focus { outline: 2px solid var(--teal); outline-offset: 1px;
   position: absolute;
   top: 0;
   pointer-events: none;
-  background: var(--ink);
+  background: var(--navy);
   color: #fff;
   border-radius: 8px;
   padding: 8px 10px;
@@ -273,10 +272,10 @@ input:focus, select:focus { outline: 2px solid var(--teal); outline-offset: 1px;
   position: relative;
 }
 .tabbar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.tabbar button.is-active { color: var(--teal); }
+.tabbar button.is-active { color: var(--navy); }
 .tabbar button.is-active::before {
   content: ""; position: absolute; top: 0; left: 30%; right: 30%;
-  height: 3px; background: var(--teal);
+  height: 3px; background: var(--turquoise);
 }
 
 .toast {

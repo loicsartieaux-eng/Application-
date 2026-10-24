@@ -21,12 +21,15 @@ Pense à exporter une sauvegarde de temps en temps : si les données du navigate
 
 ## Charte graphique
 
+Couleurs relevées sur le logo NumLo (`logo.png`) :
+
 | Rôle | Couleur |
 |---|---|
-| Bleu canard (principal) | `#0090ad` |
-| Bleu clair (traits, accents) | `#60aec2` |
-| Fond crème | `#fdfbf8` |
-| Texte | `#454545` |
-| Accent jaune | `#e8df2e` |
+| Bleu marine (titres, boutons) | `#003a5e` |
+| Bleu (première courbe, liens) | `#1391b5` |
+| Turquoise (accents) | `#26cbb7` |
+| Menthe (dégradé) | `#3fdfb7` |
 
-Police : Archivo (titres en très gras, en capitales).
+Le dégradé menthe → bleu du symbole est repris sous l'en-tête et dans les filets de titres. Les icônes de l'application sont générées à partir du symbole du logo.
+
+Police : Archivo (Google Fonts), en remplacement provisoire de la police de la charte.

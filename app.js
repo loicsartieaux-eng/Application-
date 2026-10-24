@@ -3,10 +3,10 @@
 /* ---------- Données ---------- */
 
 const STORAGE_KEY = 'numlo-followers-v1';
-// Couleurs des séries : bleu canard NumLo en premier, puis 4 teintes validées
+// Couleurs des séries : bleu NumLo en premier, puis 4 teintes validées
 // (contraste et daltonisme) sur fond blanc. Au-delà de 5 comptes, les couleurs
 // se répètent avec un trait pointillé pour rester distinguables.
-const SERIES_COLORS = ['#0090ad', '#c27c00', '#7a5fb0', '#2f8f5b', '#d65a3a'];
+const SERIES_COLORS = ['#1391b5', '#d27d14', '#7a5fb0', '#1fa58f', '#d65a3a'];
 const MAX_CHART_SERIES = 5;
 
 let state = load();
