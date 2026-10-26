@@ -23,6 +23,7 @@
       <div>
         <p class="eyebrow">Suivi des</p>
         <h1>FOLLOWERS</h1>
+        <button type="button" id="sync" class="sync" data-status="loading"></button>
       </div>
     </div>
   </header>
@@ -106,18 +107,19 @@
 
       <ul id="account-list" class="history"></ul>
 
-      <div class="section-title"><span class="rule"></span><h2>Sauvegarde</h2></div>
+      <div class="section-title"><span class="rule"></span><h2>Données</h2></div>
       <div class="card">
-        <p class="hint">Les données sont enregistrées sur ce téléphone. Exporte-les régulièrement pour les garder en sécurité.</p>
+        <p class="hint">Tes relevés sont enregistrés dans ta base Airtable « NumLo Followers » : ils sont accessibles depuis tous tes appareils.</p>
         <div class="btn-row">
           <button type="button" id="export-json" class="btn">Exporter (JSON)</button>
           <button type="button" id="export-csv" class="btn">Exporter (CSV)</button>
         </div>
         <label class="btn btn-file">
-          Importer une sauvegarde
+          Importer des relevés
           <input id="import-json" type="file" accept="application/json,.json" hidden>
         </label>
       </div>
+      <button type="button" id="logout" class="btn btn-ghost">Verrouiller sur cet appareil</button>
     </section>
   </main>
 
@@ -136,8 +138,38 @@
     </button>
   </nav>
 
+  <section id="lock" class="lock" hidden>
+    <div class="lock-box">
+      <img class="lock-logo" src="logo.png" alt="NumLo">
+      <div class="section-title"><span class="rule"></span><h2>Accès réservé</h2></div>
+      <form id="lock-form" class="card" autocomplete="on">
+        <p id="lock-intro" class="hint"></p>
+        <label class="field" id="token-field">
+          <span>Clé Airtable</span>
+          <input id="lock-token" type="password" autocomplete="off" placeholder="pat…">
+        </label>
+        <input type="text" name="username" value="NumLo Followers" autocomplete="username" hidden>
+        <label class="field">
+          <span>Mot de passe</span>
+          <input id="lock-password" type="password" required>
+        </label>
+        <p id="lock-msg" class="hint" aria-live="polite"></p>
+        <button type="submit" class="btn btn-primary">Ouvrir</button>
+      </form>
+      <div id="lock-code" class="card" hidden>
+        <p class="hint"><strong>Connexion réussie !</strong> Voici ton code de connexion. Envoie-le à Claude (ou colle-le dans <code>config.js</code>) : ensuite, chaque appareil ne te demandera plus que ton mot de passe.</p>
+        <textarea id="lock-code-value" rows="4" readonly></textarea>
+        <div class="btn-row">
+          <button type="button" id="lock-code-copy" class="btn">Copier le code</button>
+          <button type="button" id="lock-continue" class="btn btn-primary">Continuer</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

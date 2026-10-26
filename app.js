@@ -2,38 +2,38 @@
 
 /* ---------- Données ---------- */
 
-const STORAGE_KEY = 'numlo-followers-v1';
+// Copie locale des données, pour un affichage immédiat (la référence est Airtable)
+const CACHE_KEY = 'numlo-followers-cache';
+const TOKEN_KEY = 'numlo-followers-token';
 // Couleurs des séries : bleu NumLo en premier, puis 4 teintes validées
 // (contraste et daltonisme) sur fond blanc. Au-delà de 5 comptes, les couleurs
 // se répètent avec un trait pointillé pour rester distinguables.
 const SERIES_COLORS = ['#1391b5', '#d27d14', '#7a5fb0', '#1fa58f', '#d65a3a'];
 const MAX_CHART_SERIES = 5;
 
-let state = load();
+let state = readJSON(CACHE_KEY, { accounts: [], entries: [] });
+let token = readJSON(TOKEN_KEY, null);
 let chartSelection = null; // ids des comptes affichés sur le graphique
 let chartRange = 'all';
 
-function load() {
+function readJSON(key, fallback) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      if (Array.isArray(data.accounts) && Array.isArray(data.entries)) return data;
-    }
-  } catch (e) { /* stockage indisponible : on repart de zéro */ }
-  return { accounts: [], entries: [] };
-}
-
-function save() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
   } catch (e) {
-    toast('Impossible d’enregistrer sur cet appareil');
+    return fallback;
   }
 }
 
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function writeJSON(key, value) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) { /* stockage indisponible : l'app fonctionne quand même en ligne */ }
+}
+
+function save() {
+  writeJSON(CACHE_KEY, state);
 }
 
 function accountById(id) {
@@ -54,8 +54,8 @@ function isDashed(account) {
   return account.colorIndex >= SERIES_COLORS.length;
 }
 
-function nextColorIndex() {
-  const used = new Set(state.accounts.map(a => a.colorIndex));
+function nextColorIndex(accounts = state.accounts) {
+  const used = new Set(accounts.map(a => a.colorIndex));
   let i = 0;
   while (used.has(i)) i++;
   return i;
@@ -66,6 +66,303 @@ function entriesFor(accountId) {
     .filter(e => e.accountId === accountId)
     .sort((a, b) => a.date.localeCompare(b.date));
 }
+
+/* ---------- Airtable ---------- */
+
+const C = AIRTABLE.comptes;
+const R = AIRTABLE.releves;
+
+class AuthError extends Error {}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function api(path, { method = 'GET', body, key = token } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE.baseId}/${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    // Airtable limite à 5 requêtes par seconde : on patiente et on réessaie
+    if (res.status === 429 && attempt < 5) { await sleep(1000); continue; }
+    if (res.status === 401 || res.status === 403) throw new AuthError('clé refusée');
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error?.message || `Erreur Airtable ${res.status}`);
+    return out;
+  }
+}
+
+async function listAll(table, key) {
+  const records = [];
+  let offset = '';
+  do {
+    const out = await api(`${table}?pageSize=100&returnFieldsByFieldId=true${offset ? '&offset=' + offset : ''}`, { key });
+    records.push(...out.records);
+    offset = out.offset || '';
+  } while (offset);
+  return records;
+}
+
+// Lit toute la base ; les lignes ajoutées à la main dans Airtable sont prises en compte
+async function fetchAll(key = token) {
+  const [comptes, releves] = await Promise.all([listAll(C.table, key), listAll(R.table, key)]);
+  const accounts = [];
+  comptes.forEach(r => {
+    const name = String(r.fields[C.name] || '').trim();
+    if (!name) return;
+    const color = r.fields[C.color];
+    accounts.push({ id: r.id, name, network: r.fields[C.network] || 'Autre', colorIndex: Number.isInteger(color) ? color : null });
+  });
+  accounts.forEach(a => { if (a.colorIndex === null) a.colorIndex = nextColorIndex(accounts); });
+  const ids = new Set(accounts.map(a => a.id));
+  const entries = [];
+  releves.forEach(r => {
+    const accountId = (r.fields[R.page] || [])[0];
+    const date = r.fields[R.date];
+    const count = r.fields[R.count];
+    if (ids.has(accountId) && date && Number.isFinite(count)) entries.push({ id: r.id, accountId, date, count });
+  });
+  return { accounts, entries };
+}
+
+async function createAccount(name, network) {
+  const colorIndex = nextColorIndex();
+  const out = await api(C.table, {
+    method: 'POST',
+    body: { typecast: true, records: [{ fields: { [C.name]: name, [C.network]: network, [C.color]: colorIndex } }] },
+  });
+  const account = { id: out.records[0].id, name, network, colorIndex };
+  state.accounts.push(account);
+  return account;
+}
+
+async function deleteRecords(table, ids) {
+  for (let i = 0; i < ids.length; i += 10) {
+    await api(`${table}?${ids.slice(i, i + 10).map(id => 'records[]=' + id).join('&')}`, { method: 'DELETE' });
+  }
+}
+
+async function removeAccount(id) {
+  await deleteRecords(R.table, state.entries.filter(e => e.accountId === id).map(e => e.id));
+  await deleteRecords(C.table, [id]);
+  state.accounts = state.accounts.filter(a => a.id !== id);
+  state.entries = state.entries.filter(e => e.accountId !== id);
+}
+
+// Enregistre des relevés (un seul par page et par jour : l'existant est mis à jour)
+async function saveEntries(items) {
+  const toUpdate = [];
+  const toCreate = [];
+  items.forEach(it => {
+    const existing = state.entries.find(e => e.accountId === it.accountId && e.date === it.date);
+    if (existing) toUpdate.push({ existing, count: it.count });
+    else toCreate.push(it);
+  });
+  for (let i = 0; i < toUpdate.length; i += 10) {
+    const batch = toUpdate.slice(i, i + 10);
+    await api(R.table, { method: 'PATCH', body: { records: batch.map(u => ({ id: u.existing.id, fields: { [R.count]: u.count } })) } });
+    batch.forEach(u => { u.existing.count = u.count; });
+  }
+  for (let i = 0; i < toCreate.length; i += 10) {
+    const batch = toCreate.slice(i, i + 10);
+    const out = await api(R.table, {
+      method: 'POST',
+      body: {
+        records: batch.map(it => ({
+          fields: {
+            [R.label]: `${accountById(it.accountId).name} · ${it.date}`,
+            [R.date]: it.date,
+            [R.count]: it.count,
+            [R.page]: [it.accountId],
+          },
+        })),
+      },
+    });
+    out.records.forEach((rec, j) => state.entries.push({ id: rec.id, ...batch[j] }));
+  }
+  return { updated: toUpdate.length, created: toCreate.length };
+}
+
+async function removeEntry(id) {
+  await deleteRecords(R.table, [id]);
+  state.entries = state.entries.filter(e => e.id !== id);
+}
+
+/* ---------- Synchronisation ---------- */
+
+const syncEl = document.getElementById('sync');
+
+function setSync(status) {
+  const labels = {
+    ok: 'Synchronisé avec Airtable',
+    loading: 'Synchronisation…',
+    offline: 'Hors ligne · lecture seule',
+  };
+  syncEl.textContent = labels[status];
+  syncEl.dataset.status = status;
+}
+
+let refreshing = false;
+async function refresh() {
+  if (!token || refreshing) return;
+  refreshing = true;
+  setSync('loading');
+  try {
+    state = await fetchAll();
+    save();
+    setSync('ok');
+    refreshAll();
+  } catch (e) {
+    if (e instanceof AuthError) lock('La clé Airtable n’est plus valide. Reconnecte-toi.');
+    else setSync('offline');
+  } finally {
+    refreshing = false;
+  }
+}
+
+// Exécute une écriture vers Airtable et affiche le résultat
+async function write(button, action, successMsg) {
+  if (button) button.disabled = true;
+  try {
+    const result = await action();
+    save();
+    refreshAll();
+    setSync('ok');
+    const msg = typeof successMsg === 'function' ? successMsg(result) : successMsg;
+    if (msg) toast(msg);
+    return true;
+  } catch (e) {
+    if (e instanceof AuthError) lock('La clé Airtable n’est plus valide. Reconnecte-toi.');
+    else toast(navigator.onLine ? `Échec : ${e.message}` : 'Pas de connexion : rien n’a été enregistré');
+    return false;
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
+window.addEventListener('online', refresh);
+syncEl.addEventListener('click', refresh);
+
+/* ---------- Accès par mot de passe ---------- */
+
+// La clé Airtable est chiffrée avec le mot de passe (PBKDF2 + AES-GCM)
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function deriveKey(password, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptToken(tok, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await deriveKey(password, salt), new TextEncoder().encode(tok));
+  return b64(salt) + '.' + b64(iv) + '.' + b64(data);
+}
+
+async function decryptToken(code, password) {
+  const [salt, iv, data] = code.split('.').map(unb64);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, await deriveKey(password, salt), data);
+  return new TextDecoder().decode(plain);
+}
+
+const lockEl = document.getElementById('lock');
+const lockForm = document.getElementById('lock-form');
+const lockMsg = document.getElementById('lock-msg');
+const tokenField = document.getElementById('token-field');
+
+function lock(message = '') {
+  token = null;
+  writeJSON(TOKEN_KEY, null);
+  writeJSON(CACHE_KEY, null);
+  state = { accounts: [], entries: [] };
+  chartSelection = null;
+  const firstSetup = !CODE_CONNEXION;
+  tokenField.hidden = !firstSetup;
+  document.getElementById('lock-token').required = firstSetup;
+  document.getElementById('lock-intro').textContent = firstSetup
+    ? 'Première connexion : colle ta clé Airtable et choisis un mot de passe.'
+    : 'Entre ton mot de passe.';
+  document.getElementById('lock-password').autocomplete = firstSetup ? 'new-password' : 'current-password';
+  lockMsg.textContent = message;
+  document.getElementById('lock-code').hidden = true;
+  lockForm.hidden = false;
+  document.body.classList.add('is-locked');
+  lockEl.hidden = false;
+  refreshAll();
+}
+
+function unlock() {
+  lockEl.hidden = true;
+  document.body.classList.remove('is-locked');
+  refreshAll();
+  if (!state.accounts.length) showTab('comptes');
+}
+
+lockForm.addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const password = document.getElementById('lock-password').value;
+  const button = lockForm.querySelector('button');
+  button.disabled = true;
+  lockMsg.textContent = 'Connexion…';
+  try {
+    let key;
+    if (CODE_CONNEXION) {
+      try {
+        key = await decryptToken(CODE_CONNEXION, password);
+      } catch (e) {
+        lockMsg.textContent = 'Mot de passe incorrect.';
+        return;
+      }
+    } else {
+      key = document.getElementById('lock-token').value.trim();
+      if (password.length < 8) { lockMsg.textContent = 'Choisis un mot de passe d’au moins 8 caractères.'; return; }
+    }
+    state = await fetchAll(key);
+    token = key;
+    writeJSON(TOKEN_KEY, token);
+    save();
+    setSync('ok');
+    document.getElementById('lock-password').value = '';
+    document.getElementById('lock-token').value = '';
+    if (CODE_CONNEXION) {
+      unlock();
+    } else {
+      // Première connexion : on fournit le code à enregistrer dans config.js
+      document.getElementById('lock-code-value').value = await encryptToken(key, password);
+      lockForm.hidden = true;
+      document.getElementById('lock-code').hidden = false;
+    }
+  } catch (e) {
+    lockMsg.textContent = e instanceof AuthError
+      ? 'Clé Airtable refusée. Vérifie qu’elle a bien accès à la base « NumLo Followers ».'
+      : 'Impossible de joindre Airtable. Vérifie ta connexion.';
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('lock-code-copy').addEventListener('click', async () => {
+  const input = document.getElementById('lock-code-value');
+  try {
+    await navigator.clipboard.writeText(input.value);
+  } catch (e) {
+    input.select();
+    document.execCommand('copy');
+  }
+  toast('Code copié');
+});
+
+document.getElementById('lock-continue').addEventListener('click', unlock);
+
+document.getElementById('logout').addEventListener('click', () => {
+  if (confirm('Verrouiller l’application sur cet appareil ? Le mot de passe sera redemandé.')) lock();
+});
 
 /* ---------- Format ---------- */
 
@@ -97,7 +394,7 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('is-on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('is-on'), 2200);
+  toastTimer = setTimeout(() => el.classList.remove('is-on'), 2600);
 }
 
 /* ---------- Onglets ---------- */
@@ -164,7 +461,7 @@ function renderHistory() {
     const list = entriesFor(a.id);
     list.forEach((e, i) => { if (i > 0) prevCount.set(e.id, list[i - 1].count); });
   });
-  const sorted = [...state.entries].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+  const sorted = [...state.entries].sort((a, b) => b.date.localeCompare(a.date));
   el.innerHTML = sorted.slice(0, 50).map(e => {
     const acc = accountById(e.accountId);
     if (!acc) return '';
@@ -184,7 +481,7 @@ function renderHistory() {
 
 entryAccount.addEventListener('change', updateHint);
 
-entryForm.addEventListener('submit', ev => {
+entryForm.addEventListener('submit', async ev => {
   ev.preventDefault();
   const accountId = entryAccount.value;
   const count = parseInt(entryCount.value, 10);
@@ -193,29 +490,17 @@ entryForm.addEventListener('submit', ev => {
   if (!Number.isFinite(count) || count < 0) { toast('Nombre invalide'); return; }
   if (!date) { toast('Date manquante'); return; }
 
-  // Un seul relevé par compte et par jour : on remplace s'il existe déjà
-  const existing = state.entries.find(e => e.accountId === accountId && e.date === date);
-  if (existing) {
-    existing.count = count;
-    toast('Relevé mis à jour');
-  } else {
-    state.entries.push({ id: uid(), accountId, date, count, createdAt: Date.now() });
-    toast('Relevé enregistré');
-  }
-  save();
-  entryCount.value = '';
-  renderHistory();
-  updateHint();
+  const ok = await write(entryForm.querySelector('button'),
+    () => saveEntries([{ accountId, date, count }]),
+    r => (r.updated ? 'Relevé mis à jour' : 'Relevé enregistré'));
+  if (ok) entryCount.value = '';
 });
 
 document.getElementById('history').addEventListener('click', ev => {
-  const id = ev.target.closest('[data-del-entry]')?.dataset.delEntry;
-  if (!id) return;
+  const btn = ev.target.closest('[data-del-entry]');
+  if (!btn) return;
   if (!confirm('Supprimer ce relevé ?')) return;
-  state.entries = state.entries.filter(e => e.id !== id);
-  save();
-  renderHistory();
-  updateHint();
+  write(btn, () => removeEntry(btn.dataset.delEntry), 'Relevé supprimé');
 });
 
 /* ---------- Onglet Comptes ---------- */
@@ -239,31 +524,29 @@ function renderAccountList() {
   }).join('');
 }
 
-document.getElementById('account-form').addEventListener('submit', ev => {
+document.getElementById('account-form').addEventListener('submit', async ev => {
   ev.preventDefault();
-  const name = document.getElementById('account-name').value.trim();
+  const input = document.getElementById('account-name');
+  const name = input.value.trim();
   const network = document.getElementById('account-network').value;
   if (!name) return;
-  const account = { id: uid(), name, network, colorIndex: nextColorIndex() };
-  state.accounts.push(account);
-  save();
-  document.getElementById('account-name').value = '';
-  refreshAll();
-  entryAccount.value = account.id;
-  updateHint();
-  toast(`« ${name} » ajoutée`);
+  if (state.accounts.some(a => a.name === name && a.network === network)) { toast('Cette page existe déjà'); return; }
+  let account;
+  const ok = await write(ev.target.querySelector('button'), async () => { account = await createAccount(name, network); }, `« ${name} » ajoutée`);
+  if (ok) {
+    input.value = '';
+    entryAccount.value = account.id;
+    updateHint();
+  }
 });
 
 document.getElementById('account-list').addEventListener('click', ev => {
-  const id = ev.target.closest('[data-del-account]')?.dataset.delAccount;
-  if (!id) return;
-  const acc = accountById(id);
+  const btn = ev.target.closest('[data-del-account]');
+  if (!btn) return;
+  const acc = accountById(btn.dataset.delAccount);
   if (!confirm(`Supprimer « ${acc.name} » et tous ses relevés ?`)) return;
-  state.accounts = state.accounts.filter(a => a.id !== id);
-  state.entries = state.entries.filter(e => e.accountId !== id);
-  if (chartSelection) chartSelection = chartSelection.filter(x => x !== id);
-  save();
-  refreshAll();
+  if (chartSelection) chartSelection = chartSelection.filter(x => x !== acc.id);
+  write(btn, () => removeAccount(acc.id), `« ${acc.name} » supprimée`);
 });
 
 /* ---------- Sauvegarde ---------- */
@@ -295,22 +578,31 @@ document.getElementById('export-csv').addEventListener('click', () => {
   download(`numlo-followers-${todayISO()}.csv`, '﻿' + rows.join('\n'), 'text/csv');
 });
 
+// Ajoute le contenu d'une sauvegarde à la base (sans rien effacer)
 document.getElementById('import-json').addEventListener('change', async ev => {
   const file = ev.target.files[0];
   ev.target.value = '';
   if (!file) return;
+  let data;
   try {
-    const data = JSON.parse(await file.text());
+    data = JSON.parse(await file.text());
     if (!Array.isArray(data.accounts) || !Array.isArray(data.entries)) throw new Error('format');
-    if (!confirm('Remplacer les données actuelles par cette sauvegarde ?')) return;
-    state = data;
-    chartSelection = null;
-    save();
-    refreshAll();
-    toast('Sauvegarde importée');
   } catch (e) {
     toast('Fichier de sauvegarde invalide');
+    return;
   }
+  if (!confirm(`Ajouter ${data.entries.length} relevé(s) de ${data.accounts.length} page(s) à la base ?`)) return;
+  await write(null, async () => {
+    const ids = new Map();
+    for (const a of data.accounts) {
+      const same = state.accounts.find(x => x.name === a.name && x.network === a.network);
+      ids.set(a.id, (same || await createAccount(a.name, a.network)).id);
+    }
+    const items = data.entries
+      .filter(e => ids.has(e.accountId))
+      .map(e => ({ accountId: ids.get(e.accountId), date: e.date, count: e.count }));
+    return saveEntries(items);
+  }, r => `Import terminé : ${r.created} ajouté(s), ${r.updated} mis à jour`);
 });
 
 /* ---------- Onglet Graphique ---------- */
@@ -571,8 +863,12 @@ function refreshAll() {
   if (!document.getElementById('tab-graphique').hidden) renderChartTab();
 }
 
-refreshAll();
-if (!state.accounts.length) showTab('comptes');
+if (token) {
+  unlock();
+  refresh();
+} else {
+  lock();
+}
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -6,9 +6,19 @@ Application mobile (PWA) pour suivre l'évolution du nombre de followers des pag
 
 - **Encoder** : choisir la page, noter le nombre de followers et la date. Un seul relevé par page et par jour (une nouvelle saisie remplace l'ancienne). Historique avec la variation depuis le relevé précédent.
 - **Graphique** : courbes d'évolution (jusqu'à 5 pages comparées), filtres 30 j / 3 mois / 1 an / tout, chiffres clés avec la progression, infobulle au toucher et vue en tableau.
-- **Comptes** : ajouter ou supprimer des pages (Facebook, Instagram, LinkedIn, TikTok, YouTube, X…), exporter en JSON ou CSV (Excel) et réimporter une sauvegarde.
+- **Comptes** : ajouter ou supprimer des pages, exporter en JSON ou CSV (Excel), importer des relevés.
 
-Les données sont stockées localement sur le téléphone, sans serveur. L'application fonctionne hors ligne une fois installée.
+## Stockage : Airtable
+
+Les données sont enregistrées dans la base Airtable **NumLo Followers** (tables *Comptes* et *Relevés*) : elles sont identiques sur le téléphone et sur le PC. Des relevés peuvent aussi être ajoutés directement dans Airtable (Date, Followers et Page liée) ; l'application les affiche.
+
+L'accès est réservé par mot de passe :
+
+1. Créer une clé sur https://airtable.com/create/tokens avec les droits `data.records:read` et `data.records:write`, limitée à la base *NumLo Followers*.
+2. Au premier lancement, coller la clé et choisir un mot de passe (8 caractères minimum).
+3. L'application affiche un **code de connexion** (la clé chiffrée avec le mot de passe). Le coller dans `config.js` (`CODE_CONNEXION`) : ensuite, chaque appareil ne demande plus que le mot de passe.
+
+Le code de connexion est public (il est dans le dépôt) : choisis un mot de passe solide, car c'est lui seul qui le protège.
 
 ## Installation sur smartphone
 
@@ -16,8 +26,6 @@ Les données sont stockées localement sur le téléphone, sans serveur. L'appli
 2. Ouvrir l'adresse fournie sur le téléphone :
    - **iPhone (Safari)** : bouton Partager → *Sur l'écran d'accueil*.
    - **Android (Chrome)** : menu ⋮ → *Installer l'application*.
-
-Pense à exporter une sauvegarde de temps en temps : si les données du navigateur sont effacées, les relevés le sont aussi.
 
 ## Charte graphique
 
