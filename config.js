@@ -19,4 +19,4 @@ const AIRTABLE = {
 
 // Clé Airtable chiffrée avec ton mot de passe (code de connexion généré par
 // l'application). Une fois rempli, chaque appareil ne demande plus que le mot de passe.
-const CODE_CONNEXION = '';
+const CODE_CONNEXION = '6dXKQkBX0CA3sgoGCz7pog==.seySN5wxeK5bLy7W.jV6qOkKW358akfhPKN5hmKzRIC9zkFNKDE0XdQVlqiNdU3dhCFvMr50LMdvcYZH4N6lf6du6DLVwja7GVMIz/qpXmrD/t98YoQ8oqenC5EDDnruDJmO3otIzFHKD5Br5BfU=';
